@@ -1,0 +1,19 @@
+[project]
+name = "sns-downloader-backend"
+version = "0.1.0"
+description = "FastAPI backend for the SNS media downloader"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "yt-dlp==2026.7.4",
+    "python-multipart>=0.0.20",
+    "slowapi>=0.1.9",
+    "pydantic-settings>=2.7",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.28",
+]

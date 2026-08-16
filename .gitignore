@@ -1,0 +1,18 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/data/
+
+# env files (keep examples)
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Node
+node_modules/
+.next/
+
+# misc
+.DS_Store
