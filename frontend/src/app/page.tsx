@@ -1,8 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError, extractMedia, mediaUrl, previewUrl } from "@/lib/api";
 import type { ExtractResponse } from "@/lib/api";
+import {
+  LOCALES,
+  errorMessage,
+  formatItemCount,
+  getMessages,
+  mediaTypeLabel,
+  useLocale,
+  type Locale,
+} from "@/lib/i18n";
 
 function formatBytes(bytes: number): string {
   if (!bytes) return "0 B";
@@ -12,10 +21,16 @@ function formatBytes(bytes: number): string {
 }
 
 export default function Home() {
+  const [locale, setLocale] = useLocale();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ExtractResponse | null>(null);
+  const t = getMessages(locale);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,7 +42,9 @@ export default function Home() {
       setResult(res);
     } catch (err) {
       setError(
-        err instanceof ApiError ? `${err.code} — ${err.message}` : "Unexpected error."
+        err instanceof ApiError
+          ? errorMessage(err.code, err.message, locale)
+          : t.unexpectedError
       );
     } finally {
       setLoading(false);
@@ -36,11 +53,24 @@ export default function Home() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-6 py-12">
+      <div className="flex justify-end">
+        <select
+          value={locale}
+          onChange={(e) => setLocale(e.target.value as Locale)}
+          aria-label="Language"
+          className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-600 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+        >
+          {LOCALES.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <header className="flex flex-col gap-2 text-center">
         <h1 className="text-3xl font-semibold tracking-tight">SNS Media Downloader</h1>
-        <p className="text-zinc-500">
-          Download Instagram and X (Twitter) posts, reels, and videos in original quality.
-        </p>
+        <p className="text-zinc-500">{t.subtitle}</p>
       </header>
 
       <form
@@ -49,7 +79,7 @@ export default function Home() {
       >
         <div className="flex flex-col gap-1.5">
           <label htmlFor="url" className="text-sm font-medium">
-            Post URL
+            {t.postUrl}
           </label>
           <input
             id="url"
@@ -57,7 +87,7 @@ export default function Home() {
             required
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://www.instagram.com/reel/... or https://x.com/.../status/..."
+            placeholder={t.urlPlaceholder}
             className="rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-950"
           />
         </div>
@@ -67,7 +97,7 @@ export default function Home() {
           disabled={loading}
           className="rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
         >
-          {loading ? "Extracting…" : "Extract"}
+          {loading ? t.extracting : t.extract}
         </button>
       </form>
 
@@ -84,7 +114,9 @@ export default function Home() {
               <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium uppercase dark:bg-zinc-800">
                 {result.platform}
               </span>
-              <span className="text-xs text-zinc-500">{result.media.length} item(s)</span>
+              <span className="text-xs text-zinc-500">
+                {formatItemCount(result.media.length, locale)}
+              </span>
             </div>
             {result.title && (
               <p className="line-clamp-3 text-sm text-zinc-600 dark:text-zinc-400">
@@ -120,7 +152,7 @@ export default function Home() {
                 <div className="flex items-center justify-between gap-2 px-4 pb-4">
                   <div className="flex items-center gap-2 text-xs text-zinc-500">
                     <span className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono uppercase dark:bg-zinc-800">
-                      {item.type}
+                      {mediaTypeLabel(item.type, locale)}
                     </span>
                     <span className="font-mono">{item.ext}</span>
                     <span>{formatBytes(item.size_bytes)}</span>
@@ -132,7 +164,7 @@ export default function Home() {
                       : { download: true })}
                     className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
                   >
-                    Download
+                    {t.download}
                   </a>
                 </div>
               </li>
