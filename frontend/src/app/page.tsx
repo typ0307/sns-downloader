@@ -126,8 +126,10 @@ export default function Home() {
                     <span>{formatBytes(item.size_bytes)}</span>
                   </div>
                   <a
-                    href={mediaUrl(item.download_url)}
-                    download
+                    href={item.direct_url ?? mediaUrl(item.download_url)}
+                    {...(item.direct_url
+                      ? { target: "_blank", rel: "noopener noreferrer" }
+                      : { download: true })}
                     className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
                   >
                     Download

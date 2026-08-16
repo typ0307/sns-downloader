@@ -55,6 +55,64 @@ def test_clean_strips_ansi_and_error_prefix():
     assert ex._clean("\x1b[0;31mERROR:\x1b[0m [x] message") == "[x] message"
 
 
+def test_direct_url_from_url_field():
+    ex = _extractor()
+    assert ex._direct_url({"url": "https://x/i.jpg"}) == "https://x/i.jpg"
+
+
+def test_direct_url_prefers_combined_format():
+    ex = _extractor()
+    entry = {
+        "formats": [
+            {"url": "https://x/a.m4a", "acodec": "mp4a", "vcodec": "none", "protocol": "https"},
+            {"url": "https://x/v.mp4", "acodec": "none", "vcodec": "h264", "protocol": "https"},
+            {"url": "https://x/c.mp4", "acodec": "aac", "vcodec": "h264", "protocol": "https", "height": 720},
+        ],
+    }
+    assert ex._direct_url(entry) == "https://x/c.mp4"
+
+
+def test_direct_url_none_for_separate_streams():
+    ex = _extractor()
+    entry = {
+        "formats": [
+            {"url": "https://x/a.m4a", "acodec": "mp4a", "vcodec": "none", "protocol": "https"},
+            {"url": "https://x/v.mp4", "acodec": "none", "vcodec": "h264", "protocol": "http_dash_segments"},
+        ],
+    }
+    assert ex._direct_url(entry) is None
+
+
+def test_extract_twid():
+    ex = _extractor()
+    assert ex._extract_twid("https://x.com/u/status/2088960184043340030/") == "2088960184043340030"
+    assert ex._extract_twid("https://twitter.com/u/status/123?s=20") == "123"
+    assert ex._extract_twid("https://x.com/u") is None
+
+
+def test_photo_url_prefers_largest_size():
+    ex = _extractor()
+    detail = {
+        "media_url_https": "https://pbs.twimg.com/media/X.jpg",
+        "sizes": {"large": {"w": 1152, "h": 2048}, "medium": {"w": 675, "h": 1200}},
+    }
+    assert ex._photo_url(detail) == "https://pbs.twimg.com/media/X.jpg?name=large"
+
+
+def test_photo_url_orig_preferred():
+    ex = _extractor()
+    detail = {
+        "media_url_https": "https://pbs.twimg.com/media/X.jpg",
+        "sizes": {"orig": {}, "large": {}},
+    }
+    assert ex._photo_url(detail) == "https://pbs.twimg.com/media/X.jpg?name=orig"
+
+
+def test_photo_url_without_sizes():
+    ex = _extractor()
+    assert ex._photo_url({"media_url_https": "https://pbs.twimg.com/media/X.jpg"}) == "https://pbs.twimg.com/media/X.jpg"
+
+
 class _FakeYDL:
     def __init__(self, tmpdir: Path):
         self.tmpdir = tmpdir

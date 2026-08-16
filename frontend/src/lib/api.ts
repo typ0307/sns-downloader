@@ -4,6 +4,7 @@ export interface MediaItem {
   ext: string;
   size_bytes: number;
   download_url: string;
+  direct_url: string | null;
 }
 
 export interface ExtractResponse {

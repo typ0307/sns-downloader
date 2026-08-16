@@ -9,6 +9,7 @@ class MediaItem(BaseModel):
     ext: str
     size_bytes: int
     download_url: str
+    direct_url: str | None = None
 
 
 class ExtractResponse(BaseModel):

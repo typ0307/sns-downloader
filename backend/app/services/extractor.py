@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import math
 import re
 import secrets
 import tempfile
@@ -8,6 +10,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import yt_dlp
+from yt_dlp.jsinterp import js_number_to_string
+from yt_dlp.networking import Request
 from yt_dlp.utils import DownloadError, ExtractorError, UnsupportedError
 
 from app.errors import EXTRACT_FAILED, LOGIN_REQUIRED, RATE_LIMITED, AppError
@@ -15,8 +19,10 @@ from app.services.storage import LocalStorage
 
 VIDEO_EXTS = {"mp4", "mov", "webm", "m4v", "mkv", "avi"}
 AUDIO_EXTS = {"m4a", "mp3", "aac", "opus", "wav", "flac", "ogg"}
+_MANIFEST_PROTOCOLS = {"m3u8", "m3u8_native", "http_dash_segments", "ism", "f4m"}
 
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+_TWID_RE = re.compile(r"status/(\d+)")
 _LOGIN_HINTS = (
     "login",
     "log in",
@@ -59,6 +65,8 @@ class Extractor:
                     title = self._extract_title(info)
                     self._download(ydl, info)
                     media = self._collect(tmpdir, info, job_id)
+                    if platform == "x":
+                        self._download_x_photos(ydl, url, job_id, media)
             except UnsupportedError as exc:
                 raise AppError(EXTRACT_FAILED, self._clean(str(exc)), 400) from exc
             except (DownloadError, ExtractorError) as exc:
@@ -104,7 +112,7 @@ class Extractor:
             media_id = self._new_media_id(job_id, index, ext)
             with path.open("rb") as f:
                 self.storage.save(f, media_id)
-            media.append(self._media_dict(media_id, self._classify(ext), ext))
+            media.append(self._media_dict(media_id, self._classify(ext), ext, self._direct_url(entry)))
         return media
 
     def _iter_media(self, info: dict | None):
@@ -163,20 +171,89 @@ class Extractor:
         ext = path.rsplit(".", 1)[-1].lower()
         return ext if 1 <= len(ext) <= 5 else ""
 
-    def _media_dict(self, media_id: str, media_type: str, ext: str) -> dict:
+    def _media_dict(self, media_id: str, media_type: str, ext: str, direct_url: str | None = None) -> dict:
         return {
             "id": media_id,
             "type": media_type,
             "ext": ext,
             "size_bytes": self.storage.size(media_id),
             "download_url": f"/api/download/{media_id}",
+            "direct_url": direct_url,
         }
+
+    def _direct_url(self, entry: dict | None) -> str | None:
+        if not entry:
+            return None
+        if entry.get("url"):
+            return entry["url"]
+        combined = [
+            f for f in (entry.get("formats") or [])
+            if f.get("url")
+            and f.get("acodec") != "none"
+            and f.get("vcodec") != "none"
+            and f.get("protocol") not in _MANIFEST_PROTOCOLS
+        ]
+        if combined:
+            best = max(
+                combined,
+                key=lambda f: (f.get("height") or 0, f.get("width") or 0, f.get("tbr") or 0),
+            )
+            return best["url"]
+        return None
 
     def _extract_title(self, info: dict | None) -> str:
         if not info:
             return ""
         value = info.get("title") or info.get("description") or ""
         return value.strip()[:500]
+
+    def _download_x_photos(self, ydl, url: str, job_id: str, media: list[dict]) -> None:
+        twid = self._extract_twid(url)
+        if not twid:
+            return
+        try:
+            details = self._fetch_x_media_details(ydl, twid)
+        except Exception:
+            return
+        for detail in details or []:
+            if detail.get("type") != "photo":
+                continue
+            photo_url = self._photo_url(detail)
+            if not photo_url:
+                continue
+            ext = self._guess_ext(photo_url) or "jpg"
+            media_id = self._new_media_id(job_id, len(media), ext)
+            try:
+                with ydl.urlopen(photo_url) as resp:
+                    self.storage.save(resp, media_id)
+            except Exception:
+                continue
+            media.append(self._media_dict(media_id, "image", ext, photo_url))
+
+    def _extract_twid(self, url: str) -> str | None:
+        match = _TWID_RE.search(url)
+        return match.group(1) if match else None
+
+    def _fetch_x_media_details(self, ydl, twid: str) -> list[dict]:
+        token = js_number_to_string((int(twid) / 1e15) * math.pi, 36).translate(
+            str.maketrans(dict.fromkeys("0."))
+        )
+        endpoint = f"https://cdn.syndication.twimg.com/tweet-result?id={twid}&token={token}"
+        req = Request(endpoint, headers={"User-Agent": "Googlebot"})
+        with ydl.urlopen(req) as resp:
+            data = json.loads(resp.read().decode("utf-8", "replace"))
+        return data.get("mediaDetails") or []
+
+    def _photo_url(self, detail: dict) -> str | None:
+        base = detail.get("media_url_https") or detail.get("media_url")
+        if not base:
+            return None
+        sizes = detail.get("sizes") or {}
+        name = next((n for n in ("orig", "large", "medium") if n in sizes), None)
+        if name:
+            sep = "&" if "?" in base else "?"
+            return f"{base}{sep}name={name}"
+        return base
 
     def _map_error(self, exc: Exception) -> AppError:
         msg = self._clean(str(exc)).lower()
