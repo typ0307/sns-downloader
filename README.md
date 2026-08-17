@@ -26,9 +26,40 @@
 ## 프로젝트 구조
 
 ```
+streamlit_app.py   Streamlit 앱 (Community Cloud 배포용 단일 앱)
+requirements.txt   Streamlit 앱 의존성 (streamlit + yt-dlp)
+packages.txt       Streamlit 앱 시스템 패키지 (ffmpeg)
 frontend/          Next.js 앱 (UI)
-backend/           FastAPI 앱 (API + 미디어 추출)
+backend/           FastAPI 앱 (API + 미디어 추출, Streamlit에서 재사용)
 ```
+
+## Streamlit 앱 배포 (Community Cloud)
+
+단일 Streamlit 앱으로 간단하게 배포하려면:
+
+1. GitHub에 push → [share.streamlit.io](https://share.streamlit.io)에서 **New app**
+2. 저장소와 브랜치 선택, **Main file path**를 `streamlit_app.py`로 지정
+3. Deploy — 루트 `requirements.txt`(streamlit, yt-dlp)와 `packages.txt`(ffmpeg)가 자동 설치됩니다
+4. 완료되면 `https://<앱이름>.streamlit.app`에서 사용
+
+Streamlit 앱은 `backend/app/`의 추출 로직(yt-dlp)을 그대로 재사용하며, 미디어를
+메모리에 담아 `st.download_button`으로 즉시 전달하므로 영구 저장소가 없습니다.
+
+### 앱 슬립(수면) 방지
+
+Community Cloud는 **트래픽이 12시간 없으면 앱이 슬립**합니다. 자동으로
+깨우려면 무료 모니터링 서비스로 앱의 상태 확인 엔드포인트를 주기적으로
+호출하세요:
+
+- [UptimeRobot](https://uptimerobot.com) (무료) → Monitor URL:
+  `https://<앱이름>.streamlit.app/_stcore/health`, 간격 5분
+- 또는 [cron-job.org](https://cron-job.org) (무료)에서 같은 URL을 5~10분 간격 호출
+
+주기적 호출이 "트래픽"으로 인식되어 슬립되지 않습니다. 이미 슬립된 경우에는
+앱에 접속해 "Yes, get this app back up!" 버튼으로 깨울 수 있습니다.
+
+> 무료 티어 리소스 한도(메모리 약 2.7GB)가 있어 초대용량 동영상은 제한될 수
+> 있습니다. 별도 서버(FastAPI) 배포는 아래 "배포" 절을 참고하세요.
 
 ## 배포
 
