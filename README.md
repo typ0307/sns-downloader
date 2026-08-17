@@ -30,6 +30,16 @@ frontend/          Next.js 앱 (UI)
 backend/           FastAPI 앱 (API + 미디어 추출)
 ```
 
+## 배포
+
+- **프론트엔드**: Vercel에 배포합니다. 빌드 환경 변수로
+  `NEXT_PUBLIC_API_URL`을 백엔드 공개 URL로 설정하세요.
+  (예: `https://<username>.pythonanywhere.com`)
+- **백엔드**: PythonAnywhere에 배포합니다 (`backend/wsgi.py` + `requirements.txt`).
+  상세 절차는 [backend/README.md](backend/README.md)의 "배포" 섹션을 참고하세요.
+- 배포 환경에서는 브라우저 세션 기능 대신 **cookies.txt 업로드** 방식을
+  사용합니다.
+
 ## 빠른 시작
 
 백엔드와 프론트엔드를 각각 실행합니다.

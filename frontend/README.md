@@ -84,6 +84,18 @@ src/
     i18n.ts            다국어 문구와 로케일 관리
 ```
 
+## 배포 (Vercel)
+
+1. 저장소를 Vercel에 연결합니다.
+2. 빌드 환경 변수로 `NEXT_PUBLIC_API_URL`을 백엔드 공개 URL로 설정합니다
+   (예: `https://<username>.pythonanywhere.com`). 이 값은 빌드 시점에
+   결정되므로 Vercel 대시보드의 **Environment Variables**에 추가하세요.
+3. 배포 후 백엔드의 `CORS_ORIGINS`에 Vercel 도메인을 등록해야 브라우저에서
+   API를 직접 호출할 수 있습니다.
+
+> 개발 서버의 `/api/*` 프록시(`BACKEND_URL`)는 프로덕션 빌드에는 적용되지
+> 않습니다. 프로덕션에서는 `NEXT_PUBLIC_API_URL`로 백엔드를 직접 호출합니다.
+
 ## 스크립트
 
 | 스크립트 | 설명 |

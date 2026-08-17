@@ -141,4 +141,68 @@ app/
   errors.py            오류 코드 정의
   limiter.py           요청 제한 (slowapi)
   models.py            Pydantic 응답 모델
+wsgi.py                PythonAnywhere 등 WSGI 호스팅용 진입점
+requirements.txt       pip 설치용 의존성 목록 (PythonAnywhere 배포용)
 ```
+
+## 배포 (PythonAnywhere)
+
+프론트엔드는 Vercel, 백엔드는 PythonAnywhere에 배포하는 구성을 기준으로
+설명합니다.
+
+### 1. 코드 업로드
+
+Bash 콘솔에서 저장소를 clone합니다 (또는 파일을 업로드).
+
+```sh
+git clone <repository-url>
+cd sns-downloader/backend
+```
+
+### 2. 가상환경 및 의존성 설치
+
+PythonAnywhere 웹 탭에서 새 웹 앱을 만들 때 Python **3.12 이상**을 선택합니다.
+Bash 콘솔에서:
+
+```sh
+mkvirtualenv --python=/usr/bin/python3.12 sns-downloader
+pip install -r requirements.txt
+```
+
+### 3. WSGI 설정
+
+웹 탭 → **Code → WSGI configuration file** 경로를 이 저장소의
+`backend/wsgi.py`로 지정합니다 (또는 제공된 WSGI 파일의 내용을 `wsgi.py`의
+내용으로 교체). `wsgi.py`는 ASGI 앱을 a2wsgi로 감싸서 WSGI로 제공하며,
+`STORAGE_DIR` 기본값을 홈 디렉터리의 `sns-downloader-data`로 설정합니다.
+
+### 4. 환경 변수
+
+웹 탭 → **Environment variables**에 다음을 추가합니다.
+
+| 변수 | 값 | 설명 |
+|---|---|---|
+| `CORS_ORIGINS` | `https://<프론트>.vercel.app` | 프론트 도메인 허용 (여러 개는 쉼표 구분) |
+| `RATE_LIMIT` | `30/minute` | (선택) 로컬보다 여유 있게 조정 |
+
+### 5. 재시작 및 확인
+
+웹 탭에서 **Reload** 후:
+
+```sh
+curl https://<username>.pythonanywhere.com/api/health
+# {"status":"ok"}
+```
+
+### PythonAnywhere 배포 시 참고사항
+
+- **브라우저 세션 기능은 사용할 수 없습니다.** 백엔드와 브라우저가 같은
+  머신에 있어야 동작하므로, 배포 환경에서는 사용자가 `cookies.txt`를
+  업로드하는 방식으로 안내하세요.
+- **ffmpeg**: 일부 포맷(별도 오디오/비디오 스트림 병합)은 ffmpeg가 필요합니다.
+  Bash 콘솔에서 `ffmpeg -version`으로 확인하고, 없으면 PythonAnywhere에
+  문의하거나 대부분 콘텐츠는 병합 없이 다운로드됩니다.
+- **미디어 저장**: 다운로드한 미디어는 홈 디렉터리의
+  `sns-downloader-data/`에 저장됩니다 (웹 앱을 재시작해도 유지됨).
+- 추출 요청에 수십 초가 걸릴 수 있습니다. 무료 티어의 CPU 제한을 감안해
+  `RATE_LIMIT`을 조정하세요.

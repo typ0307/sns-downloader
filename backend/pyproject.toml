@@ -2,7 +2,7 @@
 name = "sns-downloader-backend"
 version = "0.1.0"
 description = "FastAPI backend for the SNS media downloader"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.34",
@@ -10,6 +10,7 @@ dependencies = [
     "python-multipart>=0.0.20",
     "slowapi>=0.1.9",
     "pydantic-settings>=2.7",
+    "a2wsgi>=1.10",
 ]
 
 [dependency-groups]
