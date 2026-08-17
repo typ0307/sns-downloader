@@ -12,7 +12,7 @@ from app.errors import AppError
 from app.services.cookies import CookieFile
 from app.services.extractor import Extractor
 from app.services.storage import LocalStorage
-from app.utils.urls import detect_platform
+from app.utils.urls import detect_platform, is_instagram_story_url
 
 LOCALES = {
     "ko": "한국어",
@@ -28,6 +28,14 @@ MESSAGES = {
         "url_label": "게시물 URL",
         "url_placeholder": "https://www.instagram.com/... 또는 https://x.com/.../status/...",
         "cookie_label": "cookies.txt (선택 — 비공개 게시물·스토리 등 로그인 필요 콘텐츠)",
+        "cookie_required_notice": "이 URL은 로그인이 필요한 인스타그램 스토리입니다. 아래 안내에 따라 cookies.txt를 업로드하세요.",
+        "cookie_howto": "cookies.txt 만드는 방법",
+        "cookie_howto_body": (
+            "1. Chrome/Firefox에 **\"Get cookies.txt LOCALLY\"** 확장 프로그램을 설치하세요.\n"
+            "2. 브라우저에서 [instagram.com](https://www.instagram.com)에 로그인하세요.\n"
+            "3. 해당 탭에서 확장 아이콘 클릭 → **Export** → `cookies.txt` 파일이 다운로드됩니다.\n"
+            "4. 아래 업로드 영역에 `cookies.txt`를 첨부하고 다시 추출하세요."
+        ),
         "extract": "추출",
         "extracting": "추출 중...",
         "no_media": "다운로드할 미디어가 없습니다.",
@@ -48,6 +56,14 @@ MESSAGES = {
         "url_label": "Post URL",
         "url_placeholder": "https://www.instagram.com/... or https://x.com/.../status/...",
         "cookie_label": "cookies.txt (optional — for private posts, stories, and other login-required content)",
+        "cookie_required_notice": "This URL is an Instagram story that requires login. Upload a cookies.txt following the guide below.",
+        "cookie_howto": "How to create cookies.txt",
+        "cookie_howto_body": (
+            "1. Install the **\"Get cookies.txt LOCALLY\"** browser extension (Chrome/Firefox).\n"
+            "2. Log in to [instagram.com](https://www.instagram.com) in your browser.\n"
+            "3. On that tab, click the extension icon → **Export** → a `cookies.txt` file downloads.\n"
+            "4. Attach `cookies.txt` below and extract again."
+        ),
         "extract": "Extract",
         "extracting": "Extracting...",
         "no_media": "No media available to download.",
@@ -68,6 +84,14 @@ MESSAGES = {
         "url_label": "投稿URL",
         "url_placeholder": "https://www.instagram.com/... または https://x.com/.../status/...",
         "cookie_label": "cookies.txt（任意 — 非公開投稿・ストーリーなどログインが必要なコンテンツ）",
+        "cookie_required_notice": "このURLはログインが必要なInstagramストーリーです。以下の手順で cookies.txt をアップロードしてください。",
+        "cookie_howto": "cookies.txt の作成方法",
+        "cookie_howto_body": (
+            "1. Chrome/Firefox に **「Get cookies.txt LOCALLY」** 拡張機能をインストールします。\n"
+            "2. ブラウザで [instagram.com](https://www.instagram.com) にログインします。\n"
+            "3. そのタブで拡張機能アイコンをクリック → **Export** → `cookies.txt` がダウンロードされます。\n"
+            "4. 下のアップロード欄に `cookies.txt` を添付して再度抽出します。"
+        ),
         "extract": "抽出",
         "extracting": "抽出中...",
         "no_media": "ダウンロードできるメディアがありません。",
@@ -88,6 +112,14 @@ MESSAGES = {
         "url_label": "帖子链接",
         "url_placeholder": "https://www.instagram.com/... 或 https://x.com/.../status/...",
         "cookie_label": "cookies.txt（可选 — 用于私密帖子、Stories 等需要登录的内容）",
+        "cookie_required_notice": "此链接是需要登录的 Instagram 故事。请按照以下说明上传 cookies.txt。",
+        "cookie_howto": "如何创建 cookies.txt",
+        "cookie_howto_body": (
+            "1. 安装 **“Get cookies.txt LOCALLY”** 浏览器扩展（Chrome/Firefox）。\n"
+            "2. 在浏览器中登录 [instagram.com](https://www.instagram.com)。\n"
+            "3. 在该标签页点击扩展图标 → **Export** → 下载 `cookies.txt` 文件。\n"
+            "4. 在下方上传区附加 `cookies.txt` 并重新提取。"
+        ),
         "extract": "提取",
         "extracting": "提取中...",
         "no_media": "没有可下载的媒体。",
@@ -137,27 +169,43 @@ def extract_media(url: str, cookie_bytes: bytes | None):
 
 st.set_page_config(page_title="SNS Media Downloader")
 
-st.sidebar.selectbox(
-    "Language",
-    options=list(LOCALES),
-    format_func=LOCALES.get,
-    key="lang",
-)
-
 lang = st.session_state.get("lang", "ko")
 t = MESSAGES[lang]
 
-st.title(t["title"])
-st.caption(t["caption"])
+header_col, lang_col = st.columns([4, 1])
+with header_col:
+    st.title(t["title"])
+    st.caption(t["caption"])
+with lang_col:
+    st.selectbox(
+        "Language",
+        options=list(LOCALES),
+        format_func=LOCALES.get,
+        key="lang",
+        label_visibility="collapsed",
+    )
+
+pending_error = st.session_state.pop("pending_error", None)
+if pending_error:
+    st.error(pending_error)
 
 url = st.text_input(
     t["url_label"],
     placeholder=t["url_placeholder"],
 )
-cookie_file = st.file_uploader(
-    t["cookie_label"],
-    type=["txt"],
-)
+
+needs_cookie = bool(url.strip()) and is_instagram_story_url(url.strip())
+needs_cookie = needs_cookie or st.session_state.get("show_cookie", False)
+
+cookie_file = None
+if needs_cookie:
+    st.info(t["cookie_required_notice"])
+    with st.expander(t["cookie_howto"]):
+        st.markdown(t["cookie_howto_body"])
+    cookie_file = st.file_uploader(
+        t["cookie_label"],
+        type=["txt"],
+    )
 
 if "media" not in st.session_state:
     st.session_state["media"] = []
@@ -170,7 +218,12 @@ if st.button(t["extract"], type="primary", disabled=not url.strip()):
             title, items = extract_media(url.strip(), cookie_bytes)
         except AppError as exc:
             st.session_state["media"] = []
-            st.error(t["errors"].get(exc.code, exc.message))
+            message = t["errors"].get(exc.code, exc.message)
+            if exc.code == "LOGIN_REQUIRED":
+                st.session_state["show_cookie"] = True
+                st.session_state["pending_error"] = message
+                st.rerun()
+            st.error(message)
         except Exception as exc:  # noqa: BLE001
             st.session_state["media"] = []
             st.error(t["unexpected_error"].format(error=exc))
