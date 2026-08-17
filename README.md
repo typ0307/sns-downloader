@@ -63,16 +63,16 @@ streamlit run streamlit_app.py
 
 ### 앱 슬립(수면) 방지
 
-Community Cloud는 **트래픽이 12시간 없으면 앱이 슬립**합니다. 자동으로
-깨우려면 무료 모니터링 서비스로 앱의 상태 확인 엔드포인트를 주기적으로
-호출하세요:
+Community Cloud는 **트래픽이 12시간 없으면 앱이 슬립**합니다. 이 저장소에는
+슬립을 방지하는 GitHub Actions 워크플로(`.github/workflows/keep-alive.yml`)가
+포함되어 있어, **매시간** 앱의 상태 확인 엔드포인트
+`/_stcore/health`를 자동 호출합니다. 별도 설정 없이 push만 하면 동작합니다.
 
-- [UptimeRobot](https://uptimerobot.com) (무료) → Monitor URL:
-  `https://<앱이름>.streamlit.app/_stcore/health`, 간격 5분
-- 또는 [cron-job.org](https://cron-job.org) (무료)에서 같은 URL을 5~10분 간격 호출
+다운타임 알림·모니터링이 필요하면 [UptimeRobot](https://uptimerobot.com) (무료)에서
+Monitor URL을 `https://<앱이름>.streamlit.app/_stcore/health`로 설정하세요.
 
-주기적 호출이 "트래픽"으로 인식되어 슬립되지 않습니다. 이미 슬립된 경우에는
-앱에 접속해 "Yes, get this app back up!" 버튼으로 깨울 수 있습니다.
+이미 슬립된 경우에는 앱에 접속해 "Yes, get this app back up!" 버튼으로 깨울 수
+있습니다.
 
 > 무료 티어 리소스 한도(메모리 약 2.7GB)가 있어 초대용량 동영상은 제한될 수
 > 있습니다.
