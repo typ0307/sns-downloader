@@ -152,22 +152,26 @@ requirements.txt       pip 설치용 의존성 목록 (PythonAnywhere 배포용)
 
 ### 1. 코드 업로드
 
-Bash 콘솔에서 저장소를 clone합니다 (또는 파일을 업로드).
+GitHub에 최신 코드가 push되어 있어야 합니다. Bash 콘솔에서 저장소를
+clone합니다 (또는 파일을 업로드).
 
 ```sh
-git clone <repository-url>
+git clone https://github.com/typ0307/sns-downloader.git
 cd sns-downloader/backend
 ```
 
 ### 2. 가상환경 및 의존성 설치
 
-PythonAnywhere 웹 탭에서 새 웹 앱을 만들 때 Python **3.12 이상**을 선택합니다.
-Bash 콘솔에서:
+PythonAnywhere 웹 탭에서 새 웹 앱을 만들 때 Python **3.13**(최신 지원 버전,
+3.12도 가능)을 선택합니다. Bash 콘솔에서:
 
 ```sh
-mkvirtualenv --python=/usr/bin/python3.12 sns-downloader
+mkvirtualenv --python=/usr/bin/python3.13 sns-downloader
 pip install -r requirements.txt
 ```
+
+> `requirements.txt` 파일이 없다면 GitHub에 최신 커밋이 push되지 않은
+> 것입니다. 로컬에서 `git push origin main` 후 다시 clone하세요.
 
 ### 3. WSGI 설정
 
