@@ -1,18 +1,11 @@
 # Python
-backend/.venv/
+.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-backend/data/
 
-# env files (keep examples)
-backend/.env
-backend/.env.*
-!backend/.env.example
-
-# Node
-node_modules/
-.next/
+# Streamlit secrets
+.streamlit/secrets.toml
 
 # misc
 .DS_Store
