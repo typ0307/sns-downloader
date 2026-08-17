@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     storage_dir: str = "data"
     max_upload_bytes: int = 1024 * 1024
     rate_limit: str = "10/minute"
+    cookies_from_browser: str | None = None
 
     @property
     def cors_origin_list(self) -> list[str]:

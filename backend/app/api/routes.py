@@ -33,6 +33,7 @@ def extract(
     request: Request,
     url: str = Form(...),
     cookie_file: UploadFile | None = File(None),
+    browser: str | None = Form(None),
 ) -> ExtractResponse:
     platform = detect_platform(url)
     if platform is None:
@@ -43,7 +44,8 @@ def extract(
         )
 
     storage = request.app.state.storage
-    extractor = Extractor(storage)
+    browser_name = (browser or "").strip() or request.app.state.settings.cookies_from_browser
+    extractor = Extractor(storage, cookies_from_browser=browser_name)
 
     with ExitStack() as stack:
         cookiefile = None

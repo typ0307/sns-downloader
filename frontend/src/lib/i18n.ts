@@ -6,6 +6,7 @@ export interface Messages {
   subtitle: string;
   postUrl: string;
   urlPlaceholder: string;
+  useBrowserSession: string;
   extract: string;
   extracting: string;
   download: string;
@@ -27,9 +28,11 @@ export const LOCALES: { code: Locale; label: string }[] = [
 
 const messages: Record<Locale, Messages> = {
   ko: {
-    subtitle: "인스타그램과 X(트위터)의 게시물·릴·영상을 원본 화질로 다운로드하세요.",
+    subtitle: "인스타그램과 X(트위터)의 게시물·릴·스토리·영상을 원본 화질로 다운로드하세요.",
     postUrl: "게시물 URL",
-    urlPlaceholder: "https://www.instagram.com/reel/... 또는 https://x.com/.../status/...",
+    urlPlaceholder:
+      "https://www.instagram.com/reel/... 또는 https://www.instagram.com/stories/... 또는 https://x.com/.../status/...",
+    useBrowserSession: "로그인된 브라우저 세션 사용 (스토리 등 로그인 필요 콘텐츠)",
     extract: "추출",
     extracting: "추출 중…",
     download: "다운로드",
@@ -47,9 +50,11 @@ const messages: Record<Locale, Messages> = {
     },
   },
   en: {
-    subtitle: "Download Instagram and X (Twitter) posts, reels, and videos in original quality.",
+    subtitle: "Download Instagram and X (Twitter) posts, reels, stories, and videos in original quality.",
     postUrl: "Post URL",
-    urlPlaceholder: "https://www.instagram.com/reel/... or https://x.com/.../status/...",
+    urlPlaceholder:
+      "https://www.instagram.com/reel/... or https://www.instagram.com/stories/... or https://x.com/.../status/...",
+    useBrowserSession: "Use logged-in browser session (for stories and other login-required content)",
     extract: "Extract",
     extracting: "Extracting…",
     download: "Download",
@@ -67,9 +72,11 @@ const messages: Record<Locale, Messages> = {
     },
   },
   ja: {
-    subtitle: "Instagram と X(Twitter) の投稿・リール・動画をオリジナル画質でダウンロードできます。",
+    subtitle: "Instagram と X(Twitter) の投稿・リール・ストーリー・動画をオリジナル画質でダウンロードできます。",
     postUrl: "投稿URL",
-    urlPlaceholder: "https://www.instagram.com/reel/... または https://x.com/.../status/...",
+    urlPlaceholder:
+      "https://www.instagram.com/reel/... または https://www.instagram.com/stories/... または https://x.com/.../status/...",
+    useBrowserSession: "ログイン済みブラウザのセッションを使用（ストーリーなどのログインが必要なコンテンツ）",
     extract: "抽出",
     extracting: "抽出中…",
     download: "ダウンロード",
@@ -87,9 +94,11 @@ const messages: Record<Locale, Messages> = {
     },
   },
   zh: {
-    subtitle: "以原始画质下载 Instagram 和 X(Twitter) 的帖子、Reels 和视频。",
+    subtitle: "以原始画质下载 Instagram 和 X(Twitter) 的帖子、Reels、Stories 和视频。",
     postUrl: "帖子链接",
-    urlPlaceholder: "https://www.instagram.com/reel/... 或 https://x.com/.../status/...",
+    urlPlaceholder:
+      "https://www.instagram.com/reel/... 或 https://www.instagram.com/stories/... 或 https://x.com/.../status/...",
+    useBrowserSession: "使用已登录的浏览器会话（用于 Stories 等需要登录的内容）",
     extract: "提取",
     extracting: "提取中…",
     download: "下载",

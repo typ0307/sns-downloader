@@ -32,3 +32,13 @@ def detect_platform(url: str) -> str | None:
 
 def is_supported_url(url: str) -> bool:
     return detect_platform(url) is not None
+
+
+def is_instagram_story_url(url: str) -> bool:
+    if detect_platform(url) != "instagram":
+        return False
+    try:
+        parsed = urlparse(url.strip())
+    except ValueError:
+        return False
+    return parsed.path.startswith("/stories/")

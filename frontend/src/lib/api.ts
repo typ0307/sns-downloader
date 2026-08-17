@@ -30,9 +30,12 @@ export class ApiError extends Error {
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "");
 
-export async function extractMedia(url: string): Promise<ExtractResponse> {
+export async function extractMedia(url: string, browser?: string): Promise<ExtractResponse> {
   const form = new FormData();
   form.append("url", url);
+  if (browser) {
+    form.append("browser", browser);
+  }
 
   const res = await fetch(`${API_URL}/api/extract`, {
     method: "POST",

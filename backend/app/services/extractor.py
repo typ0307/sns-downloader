@@ -10,12 +10,21 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import yt_dlp
+from yt_dlp.cookies import CookieLoadError
+from yt_dlp.extractor.instagram import InstagramStoryIE
 from yt_dlp.jsinterp import js_number_to_string
 from yt_dlp.networking import Request
-from yt_dlp.utils import DownloadError, ExtractorError, UnsupportedError
+from yt_dlp.networking.exceptions import HTTPError
+from yt_dlp.utils import (
+    DownloadError,
+    ExtractorError,
+    UnsupportedError,
+    traverse_obj,
+)
 
 from app.errors import EXTRACT_FAILED, LOGIN_REQUIRED, RATE_LIMITED, AppError
 from app.services.storage import LocalStorage
+from app.utils.urls import is_instagram_story_url
 
 VIDEO_EXTS = {"mp4", "mov", "webm", "m4v", "mkv", "avi"}
 AUDIO_EXTS = {"m4a", "mp3", "aac", "opus", "wav", "flac", "ogg"}
@@ -36,14 +45,47 @@ _LOGIN_HINTS = (
 _RATE_HINTS = ("rate limit", "rate-limit", "too many", "429", "throttl")
 
 
+class _ErrorLogger:
+    def __init__(self) -> None:
+        self.errors: list[str] = []
+
+    def debug(self, _msg: str) -> None:
+        pass
+
+    def warning(self, _msg: str) -> None:
+        pass
+
+    def error(self, msg: str) -> None:
+        self.errors.append(msg)
+
+
 class Extractor:
-    def __init__(self, storage: LocalStorage):
+    def __init__(
+        self,
+        storage: LocalStorage,
+        cookies_from_browser: str | None = None,
+    ):
         self.storage = storage
+        self.cookies_from_browser = cookies_from_browser
 
     def extract(self, url: str, platform: str, cookiefile: str | None) -> dict:
+        if (
+            platform == "instagram"
+            and is_instagram_story_url(url)
+            and not cookiefile
+            and not self.cookies_from_browser
+        ):
+            raise AppError(
+                LOGIN_REQUIRED,
+                "Instagram stories require login. Please upload a valid cookies.txt or enable browser session.",
+                401,
+            )
+
         job_id = f"job-{uuid.uuid4()}"
         title = ""
         media: list[dict] = []
+        logger = _ErrorLogger()
+        is_story = platform == "instagram" and is_instagram_story_url(url)
 
         with tempfile.TemporaryDirectory(prefix="sns-") as tmp:
             tmpdir = Path(tmp)
@@ -55,24 +97,45 @@ class Extractor:
                 "noplaylist": False,
                 "ignoreerrors": True,
                 "ignore_no_formats_error": True,
+                "logger": logger,
             }
             if cookiefile:
                 opts["cookiefile"] = cookiefile
+            elif self.cookies_from_browser:
+                opts["cookiesfrombrowser"] = (self.cookies_from_browser,)
 
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:
-                    info = ydl.extract_info(url, download=False)
-                    title = self._extract_title(info)
-                    self._download(ydl, info)
-                    media = self._collect(tmpdir, info, job_id)
-                    if platform == "x":
-                        self._download_x_photos(ydl, url, job_id, media)
+                    if is_story:
+                        title, media = self._extract_instagram_story(ydl, url, job_id)
+                    else:
+                        info = ydl.extract_info(url, download=False)
+                        title = self._extract_title(info)
+                        self._download(ydl, info)
+                        media = self._collect(tmpdir, info, job_id)
+                        if platform == "x":
+                            self._download_x_photos(ydl, url, job_id, media)
             except UnsupportedError as exc:
                 raise AppError(EXTRACT_FAILED, self._clean(str(exc)), 400) from exc
+            except CookieLoadError as exc:
+                raise AppError(
+                    LOGIN_REQUIRED,
+                    "Failed to load cookies from the browser session. Unlock your browser or upload a valid cookies.txt instead.",
+                    401,
+                ) from exc
             except (DownloadError, ExtractorError) as exc:
                 raise self._map_error(exc) from exc
 
         if not media:
+            message = self._first_error(logger.errors)
+            if message:
+                raise self._map_message(message)
+            if platform == "instagram" and is_instagram_story_url(url):
+                raise AppError(
+                    EXTRACT_FAILED,
+                    "No media found. This Instagram story has expired or is no longer available.",
+                    502,
+                )
             raise AppError(EXTRACT_FAILED, "No downloadable media found.", 502)
 
         return {
@@ -234,6 +297,97 @@ class Extractor:
         match = _TWID_RE.search(url)
         return match.group(1) if match else None
 
+    def _extract_instagram_story(self, ydl, url: str, job_id: str) -> tuple[str, list[dict]]:
+        ie = InstagramStoryIE(ydl)
+        match = ie._match_valid_url(url)
+        if not match:
+            return "", []
+        username, story_id = match.group("user", "id")
+        title = f"Story by {username}"
+        display_id = story_id or username
+
+        try:
+            page = ydl.urlopen(url).read().decode("utf-8", "replace")
+        except Exception:
+            return title, []
+        user_info = ie._search_json(r'"user":', page, "user info", display_id, fatal=False)
+        if not user_info:
+            return title, []
+        user_id = traverse_obj(user_info, "pk", "id", expected_type=str)
+        if not user_id:
+            return title, []
+
+        try:
+            resp = ydl.urlopen(Request(
+                f"{ie._API_BASE_URL}/feed/reels_media/?reel_ids={user_id}",
+                headers=ie._api_headers,
+            ))
+            data = json.loads(resp.read().decode("utf-8", "replace"))
+        except HTTPError as exc:
+            raise self._map_api_status(exc.status) from exc
+        except Exception:
+            return title, []
+
+        items = traverse_obj(
+            (data or {}).get("reels") or {},
+            (f"highlight:{story_id}", "items"),
+            (user_id, "items"),
+        ) or []
+
+        media: list[dict] = []
+        index = 0
+        for item in items:
+            if story_id and username != "highlights":
+                item_pk = str(traverse_obj(item, "pk", expected_type=str) or "")
+                if item_pk != story_id:
+                    continue
+            for entry in self._story_entries(ie, item):
+                direct_url = self._story_entry_url(entry)
+                if not direct_url:
+                    continue
+                ext = self._guess_ext(direct_url) or "jpg"
+                media_id = self._new_media_id(job_id, index, ext)
+                index += 1
+                try:
+                    with ydl.urlopen(direct_url) as media_resp:
+                        self.storage.save(media_resp, media_id)
+                except Exception:
+                    continue
+                media.append(self._media_dict(media_id, self._classify(ext), ext, direct_url))
+        return title, media
+
+    def _story_entries(self, ie, item: dict) -> list[dict]:
+        product = ie._extract_product(item)
+        if product.get("_type") == "playlist":
+            return product.get("entries") or []
+        return [product]
+
+    def _story_entry_url(self, entry: dict) -> str | None:
+        formats = entry.get("formats") or []
+        if formats:
+            best = max(
+                formats,
+                key=lambda f: (f.get("height") or 0, f.get("width") or 0, f.get("tbr") or 0),
+            )
+            return best.get("url")
+        thumb = self._best_thumbnail(entry.get("thumbnails"))
+        return thumb.get("url") if thumb else None
+
+    def _map_api_status(self, status: int) -> AppError:
+        if status in (401, 403):
+            return AppError(
+                LOGIN_REQUIRED,
+                "Failed to authenticate with Instagram. Check your cookies or browser session.",
+                401,
+            )
+        if status == 429:
+            return AppError(
+                RATE_LIMITED,
+                "Rate limited by Instagram. Please try again later.",
+                429,
+            )
+        return AppError(EXTRACT_FAILED, f"Instagram API returned status {status}.", 502)
+
     def _fetch_x_media_details(self, ydl, twid: str) -> list[dict]:
         token = js_number_to_string((int(twid) / 1e15) * math.pi, 36).translate(
             str.maketrans(dict.fromkeys("0."))
@@ -256,7 +410,10 @@ class Extractor:
         return base
 
     def _map_error(self, exc: Exception) -> AppError:
-        msg = self._clean(str(exc)).lower()
+        return self._map_message(self._clean(str(exc)))
+
+    def _map_message(self, message: str) -> AppError:
+        msg = message.lower()
         if any(hint in msg for hint in _LOGIN_HINTS):
             return AppError(
                 LOGIN_REQUIRED,
@@ -269,7 +426,14 @@ class Extractor:
                 "Rate limited by the platform. Please try again later.",
                 429,
             )
-        return AppError(EXTRACT_FAILED, self._clean(str(exc))[:500] or "Extraction failed.", 502)
+        return AppError(EXTRACT_FAILED, message[:500] or "Extraction failed.", 502)
+
+    def _first_error(self, errors: list[str]) -> str | None:
+        for error in errors:
+            cleaned = self._clean(error)
+            if cleaned:
+                return cleaned
+        return None
 
     def _clean(self, value: str) -> str:
         return _ANSI_RE.sub("", value).replace("ERROR:", "").strip()
