@@ -44,6 +44,19 @@ _LOGIN_HINTS = (
 )
 _RATE_HINTS = ("rate limit", "rate-limit", "too many", "429", "throttl")
 
+_OG_META_RE = (
+    r'<meta[^>]*property=["\']%s["\'][^>]*content=["\']([^"\']+)["\']',
+    r'<meta[^>]*content=["\']([^"\']+)["\'][^>]*property=["\']%s["\']',
+)
+
+
+def _extract_og_meta(html: str, prop: str) -> str | None:
+    for pattern in _OG_META_RE:
+        match = re.search(pattern % re.escape(prop), html, re.IGNORECASE)
+        if match:
+            return match.group(1).replace("&amp;", "&")
+    return None
+
 
 class _ErrorLogger:
     def __init__(self) -> None:
@@ -108,6 +121,8 @@ class Extractor:
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     if is_story:
                         title, media = self._extract_instagram_story(ydl, url, job_id)
+                    elif platform == "pinterest":
+                        title, media = self._extract_pinterest(ydl, url, job_id, tmpdir)
                     else:
                         info = ydl.extract_info(url, download=False)
                         title = self._extract_title(info)
@@ -292,6 +307,43 @@ class Extractor:
             except Exception:
                 continue
             media.append(self._media_dict(media_id, "image", ext, photo_url))
+
+    def _extract_pinterest(self, ydl, url: str, job_id: str, tmpdir: Path) -> tuple[str, list[dict]]:
+        try:
+            info = ydl.extract_info(url, download=False)
+            title = self._extract_title(info)
+            self._download(ydl, info)
+            media = self._collect(tmpdir, info, job_id)
+            if media:
+                return title, media
+        except Exception:
+            pass
+        return self._extract_pinterest_og_image(ydl, url, job_id)
+
+    def _extract_pinterest_og_image(self, ydl, url: str, job_id: str) -> tuple[str, list[dict]]:
+        match = re.search(r"/pin/(?:[\w-]+--)?(\d+)", url)
+        pin_id = match.group(1) if match else None
+        try:
+            page = ydl.urlopen(url).read().decode("utf-8", "replace")
+            image_url = None
+            for prop in ("og:image", "og:image:url"):
+                candidate = _extract_og_meta(page, prop)
+                if candidate:
+                    image_url = candidate
+                    break
+            if not image_url:
+                return "", []
+            title = _extract_og_meta(page, "og:title")
+            if not title:
+                title = f"Pinterest pin {pin_id}" if pin_id else "Pinterest pin"
+            ext = self._guess_ext(image_url) or "jpg"
+            media_id = self._new_media_id(job_id, 0, ext)
+            with ydl.urlopen(image_url) as resp:
+                self.storage.save(resp, media_id)
+            media = [self._media_dict(media_id, self._classify(ext), ext, image_url)]
+            return title, media
+        except Exception:
+            return "", []
 
     def _extract_twid(self, url: str) -> str | None:
         match = _TWID_RE.search(url)
