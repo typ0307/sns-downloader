@@ -17,7 +17,7 @@
 - 캐러셀(여러 장) 자동 분리 다운로드
 - 스토리는 사진(이미지)·동영상 모두 지원 (스토리는 게시 후 약 24시간 유효)
 - `cookies.txt` 업로드로 로그인 필요 콘텐츠 접근
-- 다국어 UI (한국어/English/日本語/中文) — 사이드바에서 전환
+- 다국어 UI (한국어/English/日本語/中文) — 상단 오른쪽에서 전환
 
 ## 기술 스택
 
@@ -43,14 +43,26 @@ packages.txt       시스템 패키지 (ffmpeg)
 
 ## 로컬 실행
 
+이 저장소는 uv로 관리되는 `.venv`(Python 3.10+ 권장)를 사용합니다. uv 프로젝트는
+아니므로 의존성은 루트 `requirements.txt`로 관리합니다.
+
+**의존성 설치 (필요시)**
 ```sh
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-streamlit run streamlit_app.py
+cd <저장소 경로>
+VIRTUAL_ENV="$PWD/.venv" uv pip install -r requirements.txt
+```
+
+**실행**
+```sh
+.venv/bin/python -m streamlit run streamlit_app.py
 ```
 
 브라우저에서 `http://localhost:8501`을 열고 URL을 붙여넣어 다운로드합니다.
+첫 실행 시 이메일 안내 프롬프트가 나오면 Enter로 넘기거나,
+`--server.headless=true`를 추가해 건너뛸 수 있습니다.
+
+> 일반 pip venv로도 동일하게 됩니다:
+> `python -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m streamlit run streamlit_app.py`
 
 ## Streamlit Community Cloud 배포
 
