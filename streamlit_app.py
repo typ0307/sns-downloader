@@ -26,7 +26,8 @@ MESSAGES = {
         "title": "SNS Media Downloader",
         "caption": "인스타그램 게시물·릴스·스토리, X(트위터) 게시물, Pinterest 핀을 원본 화질로 다운로드합니다.",
         "url_label": "게시물 URL",
-        "url_placeholder": "https://www.instagram.com/... 또는 https://x.com/.../status/... 또는 https://www.pinterest.com/pin/...",
+        "url_example": "Instagram: https://www.instagram.com/p/Db7rcT1oTDG/\nX: https://x.com/aespa_official/status/2090786176353669433\nPinterest: https://kr.pinterest.com/pin/167899892355467652/",
+        "url_placeholder": "https://...",
         "cookie_label": "cookies.txt (선택 — 비공개 게시물·스토리 등 로그인 필요 콘텐츠)",
         "cookie_required_notice": "이 URL은 로그인이 필요한 인스타그램 스토리입니다. 아래 안내에 따라 cookies.txt를 업로드하세요.",
         "cookie_howto": "cookies.txt 만드는 방법",
@@ -54,7 +55,8 @@ MESSAGES = {
         "title": "SNS Media Downloader",
         "caption": "Download Instagram posts, reels, stories, X (Twitter) posts, and Pinterest pins in original quality.",
         "url_label": "Post URL",
-        "url_placeholder": "https://www.instagram.com/... or https://x.com/.../status/... or https://www.pinterest.com/pin/...",
+        "url_example": "Instagram: https://www.instagram.com/p/Db7rcT1oTDG/\nX: https://x.com/aespa_official/status/2090786176353669433\nPinterest: https://kr.pinterest.com/pin/167899892355467652/",
+        "url_placeholder": "https://...",
         "cookie_label": "cookies.txt (optional — for private posts, stories, and other login-required content)",
         "cookie_required_notice": "This URL is an Instagram story that requires login. Upload a cookies.txt following the guide below.",
         "cookie_howto": "How to create cookies.txt",
@@ -82,7 +84,8 @@ MESSAGES = {
         "title": "SNS Media Downloader",
         "caption": "Instagram の投稿・リール・ストーリー、X(Twitter) の投稿、Pinterest のピンをオリジナル画質でダウンロードします。",
         "url_label": "投稿URL",
-        "url_placeholder": "https://www.instagram.com/... または https://x.com/.../status/... または https://www.pinterest.com/pin/...",
+        "url_example": "Instagram: https://www.instagram.com/p/Db7rcT1oTDG/\nX: https://x.com/aespa_official/status/2090786176353669433\nPinterest: https://kr.pinterest.com/pin/167899892355467652/",
+        "url_placeholder": "https://...",
         "cookie_label": "cookies.txt（任意 — 非公開投稿・ストーリーなどログインが必要なコンテンツ）",
         "cookie_required_notice": "このURLはログインが必要なInstagramストーリーです。以下の手順で cookies.txt をアップロードしてください。",
         "cookie_howto": "cookies.txt の作成方法",
@@ -110,7 +113,8 @@ MESSAGES = {
         "title": "SNS Media Downloader",
         "caption": "以原始画质下载 Instagram 帖子、Reels、Stories、X(Twitter) 帖子和 Pinterest 图钉。",
         "url_label": "帖子链接",
-        "url_placeholder": "https://www.instagram.com/... 或 https://x.com/.../status/... 或 https://www.pinterest.com/pin/...",
+        "url_example": "Instagram: https://www.instagram.com/p/Db7rcT1oTDG/\nX: https://x.com/aespa_official/status/2090786176353669433\nPinterest: https://kr.pinterest.com/pin/167899892355467652/",
+        "url_placeholder": "https://...",
         "cookie_label": "cookies.txt（可选 — 用于私密帖子、Stories 等需要登录的内容）",
         "cookie_required_notice": "此链接是需要登录的 Instagram 故事。请按照以下说明上传 cookies.txt。",
         "cookie_howto": "如何创建 cookies.txt",
@@ -189,6 +193,7 @@ pending_error = st.session_state.pop("pending_error", None)
 if pending_error:
     st.error(pending_error)
 
+st.caption(t["url_example"].replace("\n", "  \n"))
 url = st.text_input(
     t["url_label"],
     placeholder=t["url_placeholder"],
